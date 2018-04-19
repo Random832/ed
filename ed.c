@@ -34,13 +34,15 @@
  * Editor
  */
 
+#ifdef CRYPT
 #include	<crypt.h>
+#endif
 #include	<libgen.h>
-#include	<wait.h>
+#include	<sys/wait.h>
 #include	<string.h>
 #include	<sys/types.h>
 #include	<locale.h>
-#include	<regexpr.h>
+#include	"regexpr.h"
 #include	<regex.h>
 #include	<errno.h>
 
@@ -132,13 +134,18 @@ static const 	char	*msgtab[] =
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <unistd.h>
-#include <termio.h>
+#include <termios.h>
 #include <ctype.h>
 #include <setjmp.h>
 #include <fcntl.h>
 #include <wchar.h>	/* I18N */
 #include <wctype.h>	/* I18N */
-#include <widec.h>	/* I18N */
+#ifdef HAVE_GETTEXT
+#include <libintl.h>    /* I18N */
+#else
+#define textdomain(s) ((void)0)
+#define gettext(s) (s)
+#endif
 
 #define	FTYPE(A)	(A.st_mode)
 #define	FMODE(A)	(A.st_mode)
@@ -223,11 +230,13 @@ static void	(*oldhup)(), (*oldintr)();
 static void	(*oldquit)(), (*oldpipe)();
 static void	quit(int);
 static int	vflag = 1;
+#ifdef CRYPT
 static int	xflag;
 static int	xtflag;
 static int	kflag;
 static int	crflag;
 		/* Flag for determining if file being read is encrypted */
+#endif
 static int	hflag;
 static int	xcode = -1;
 static char	crbuf[LBSIZE];
@@ -331,7 +340,7 @@ static void	nonzero(void);
 static void	setzeroasone(void);
 static long	putline(void);
 static LINE	address(void);
-static char	*getline(long);
+static char	*getline_(long);
 static char	*getblock(long, long);
 static char	*place(char *, char *, char *);
 static void	comple(wchar_t);
@@ -363,7 +372,7 @@ static int	errcnt = 0;
 static void
 onpipe(int sig)
 {
-	(int)error(0);
+	(void)error(0);
 }
 
 int
@@ -415,6 +424,7 @@ main(int argc, char **argv)
 				vflag = 1;
 				break;
 
+#ifdef CRYPT
 			case 'x':
 				crflag = -1;
 				xflag = 1;
@@ -430,6 +440,13 @@ main(int argc, char **argv)
 		"Usage:   ed [- | -s] [-p string] [-x] [-C] [file]\n"
 		"	  red [- | -s] [-p string] [-x] [-C] [file]\n"));
 				exit(2);
+#else
+			case '?':
+				(void) fprintf(stderr, gettext(
+		"Usage:   ed [- | -s] [-p string] [file]\n"
+		"	  red [- | -s] [-p string] [file]\n"));
+				exit(2);
+#endif
 			}
 		}
 		if (argv[optind] && strcmp(argv[optind], "-") == 0 &&
@@ -443,6 +460,7 @@ main(int argc, char **argv)
 	argc = argc - optind;
 	argv = &argv[optind];
 
+#ifdef CRYPT
 	if (xflag) {
 		if (permflag)
 			crypt_close(perm);
@@ -456,13 +474,16 @@ main(int argc, char **argv)
 		if (kflag == 0)
 			crflag = 0;
 	}
+#endif
 
 	if (argc > 0) {
 		p1 = *argv;
 		if (strlen(p1) >= (size_t)FNSIZE) {
 			puts(gettext("file name too long"));
+#ifdef CRYPT
 			if (kflag)
 				crypt_close(perm);
+#endif
 			exit(2);
 		}
 		p2 = savedfile;
@@ -693,7 +714,7 @@ swch:
 				putd();
 				putchr('\t');
 			}
-			puts(getline((a1++)->cur));
+			puts(getline_((a1++)->cur));
 		}
 		while (a1 <= addr2);
 		dot = addr2;
@@ -714,8 +735,10 @@ swch:
 	caseread:
 		readflg = 1;
 		save28 = (dol != fendcore);
+#ifdef CRYPT
 		if (crflag == 2 || crflag == -2)
 			crflag = -1; /* restore crflag for next file */
+#endif
 		errno = 0;
 		if ((io = eopen(file, O_RDONLY)) < 0) {
 			lastc = '\n';
@@ -883,6 +906,7 @@ swch:
 		if (fchange == 1 && m != 0) fchange = fsave;
 		continue;
 
+#ifdef CRYPT
 	case 'C':
 		crflag = 1;
 			/*
@@ -910,6 +934,7 @@ encrypt:
 		if (kflag == 0)
 			crflag = 0;
 		continue;
+#endif
 
 	case '=':
 		setall();
@@ -1387,16 +1412,20 @@ getfile(void)
 				}
 				else
 					return (EOF);
+#if CRYPT
 			if (crflag == -1) {
 				if (isencrypt(genbuf, ninbuf + 1))
 					crflag = 2;
 				else
 					crflag = -2;
 			}
+#endif
 			fp = genbuf;
+#if CRYPT
 			if (crflag > 0)
 			if (run_crypt(count, genbuf, ninbuf+1, perm) == -1)
 				(void) error(63);
+#endif
 		}
 		if (lp >= &linebuf[LBSIZE]) {
 			lastc = '\n';
@@ -1441,7 +1470,7 @@ putfile(void)
 	fp = genbuf;
 	a1 = addr1;
 	do {
-		lp = getline(a1++->cur);
+		lp = getline_(a1++->cur);
 		if (fss.Ffill && fss.Flim && lenchk(linebuf, &fss) < 0) {
 			write(1, gettext("line too long: lno = "),
 				strlen(gettext("line too long: lno = ")));
@@ -1454,9 +1483,11 @@ putfile(void)
 		for (;;) {
 			if (--nib < 0) {
 				n = fp-genbuf;
+#if CRYPT
 				if (kflag)
 				if (run_crypt(count-n, genbuf, n, perm) == -1)
 					(void) error(63);
+#endif
 				if (write(io, genbuf, n) != n)
 					(void) error(29);
 				nib = LBSIZE - 1;
@@ -1471,9 +1502,11 @@ putfile(void)
 		}
 	} while (a1 <= addr2);
 	n = fp-genbuf;
+#if CRYPT
 	if (kflag)
 		if (run_crypt(count-n, genbuf, n, perm) == -1)
 			(void) error(63);
+#endif
 	if (write(io, genbuf, n) != n)
 		(void) error(29);
 }
@@ -1617,10 +1650,12 @@ quit(int sig)
 		(void) error(1);
 	}
 	unlink(tfname);
+#if CRYPT
 	if (kflag)
 		crypt_close(perm);
 	if (xtflag)
 		crypt_close(tperm);
+#endif
 	exit(errcnt? 2: 0);
 }
 
@@ -1676,7 +1711,7 @@ gdelete(void)
 }
 
 static char *
-getline(long tl)
+getline_(long tl)
 {
 	char *bp, *lp;
 	int nl;
@@ -1746,20 +1781,25 @@ getblock(long atl, long iof)
 		return (obuff+off);
 	if (iof == READ) {
 		if (ichanged) {
+#if CRYPT
 			if (xtflag)
 				if (run_crypt(0L, ibuff, 512, tperm) == -1)
 					(void) error(63);
+#endif
 			blkio(iblock, ibuff, write);
 		}
 		ichanged = 0;
 		iblock = bno;
 		blkio(bno, ibuff, read);
+#if CRYPT
 		if (xtflag)
 			if (run_crypt(0L, ibuff, 512, tperm) == -1)
 				(void) error(63);
+#endif
 		return (ibuff+off);
 	}
 	if (oblock >= 0) {
+#if CRYPT
 		if (xtflag) {
 			p1 = obuff;
 			p2 = crbuf;
@@ -1770,6 +1810,7 @@ getblock(long atl, long iof)
 				(void) error(63);
 			blkio(oblock, crbuf, write);
 		} else
+#endif
 			blkio(oblock, obuff, write);
 	}
 	oblock = bno;
@@ -1815,6 +1856,7 @@ init(void)
 	}
 
 	umask(omask);
+#ifdef CRYPT
 	if (xflag) {
 		xtflag = 1;
 		if (tpermflag)
@@ -1825,6 +1867,7 @@ init(void)
 			puts(gettext(msgtab[65]));
 		}
 	}
+#endif
 	brk((char *)fendcore);
 	dot = zero = dol = savdot = savdol = fendcore;
 	flag28 = save28 = 0;
@@ -1911,7 +1954,7 @@ join(void)
 		return;
 	gp = genbuf;
 	for (a1 = addr1; a1 <= addr2; a1++) {
-		lp = getline(a1->cur);
+		lp = getline_(a1->cur);
 		while (*gp = *lp++)
 			if (gp++ > &genbuf[LBSIZE-1])
 				(void) error(27);
@@ -2259,7 +2302,7 @@ getcopy(void)
 
 	if (addr1 > addr2)
 		return (EOF);
-	(void) getline((addr1++)->cur);
+	(void) getline_((addr1++)->cur);
 	return (0);
 }
 
@@ -2292,7 +2335,7 @@ execute(int gf, LINE addr)
 	else {
 		if (addr == zero)
 			return (0);
-		p1 = getline(addr->cur);
+		p1 = getline_(addr->cur);
 		locs = 0;
 	}
 	return (step(p1, expbuf));
@@ -2520,7 +2563,7 @@ putchr(unsigned char c)
 static char *
 getkey(const char *prompt)
 {
-	struct termio b;
+	struct termios b;
 	int save;
 	void (*sig)();
 	static char key[KSIZE+1];
@@ -2528,10 +2571,10 @@ getkey(const char *prompt)
 	int c;
 
 	sig = signal(SIGINT, SIG_IGN);
-	ioctl(0, TCGETA, &b);
+	tcgetattr(0, &b);
 	save = b.c_lflag;
 	b.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL);
-	ioctl(0, TCSETAW, &b);
+        tcsetattr(0, TCSADRAIN, &b);
 	write(1, gettext(prompt), strlen(gettext(prompt)));
 	p = key;
 	while (((c = getchr()) != EOF) && (c != '\n')) {
@@ -2541,7 +2584,7 @@ getkey(const char *prompt)
 	*p = 0;
 	write(1, "\n", 1);
 	b.c_lflag = save;
-	ioctl(0, TCSETAW, &b);
+        tcsetattr(0, TCSADRAIN, &b);
 	signal(SIGINT, sig);
 	return (key);
 }
@@ -2595,7 +2638,7 @@ globaln(int k)
 		if (a1->cur & 01) {
 			a1->cur &= ~01;
 			dot = a1;
-			puts(getline(a1->cur));
+			puts(getline_(a1->cur));
 			if ((c = get_wchr()) == EOF)
 				(void) error(52);
 			if (c == 'a' || c == 'i' || c == 'c')
@@ -2670,6 +2713,7 @@ eopen(char *string, int rw)
 		if ((io = open(string, rw)) >= 0) {
 			if (fflg) {
 				chcount = read(io, crbuf, LBSIZE);
+#if CRYPT
 				if (crflag == -1) {
 					if (isencrypt(crbuf, chcount))
 						crflag = 2;
@@ -2679,6 +2723,7 @@ eopen(char *string, int rw)
 				if (crflag > 0)
 				if (run_crypt(0L, crbuf, chcount, perm) == -1)
 						(void) error(63);
+#endif
 				if (fspec(crbuf, &fss, 0) < 0) {
 					fss.Ffill = 0;
 					fflg = 0;
@@ -2831,7 +2876,7 @@ red(char *op)	/* restricted - check for '/' in name */
 static int
 fspec(char line[], struct Fspec *f, int up)
 {
-	struct termio arg;
+	struct termios arg;
 	int havespec, n;
 	int	len;
 
@@ -2848,7 +2893,7 @@ fspec(char line[], struct Fspec *f, int up)
 					if (*(fsp+1) == ':') {
 						havespec = 1;
 						clear(f);
-						if (!ioctl(1, TCGETA, &arg) &&
+						if (!tcgetattr(1, &arg) &&
 						((arg.c_oflag&TAB3) == TAB3))
 						    f->Ffill = 1;
 						fsp++;
@@ -3168,3 +3213,4 @@ get_wchr()
 		wc = getchr();
 	return (wc);
 }
+
