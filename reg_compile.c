@@ -34,8 +34,6 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
-//#include <thread.h>
-#include <pthread.h>
 #include "widec.h" /* Defines multibyte and WCHAR_CSMASK for valid_range(). */
 #include "_range.h"
 #include "_regexp.h"
@@ -62,86 +60,18 @@
 
 int	nbra = 0, regerrno = 0, reglength = 0;
 
-static unsigned char	_bittab[] = { 1, 2, 4, 8, 16, 32, 64, 128 };
+static unsigned char	bittab[] = { 1, 2, 4, 8, 16, 32, 64, 128 };
 
-#ifdef  _REENTRANT
-typedef struct _vars_storage {
-	int	nbra, regerrno, reglength;
-} vars_storage;
-
-static thread_key_t key = THR_ONCE_KEY;
-
-static vars_storage *
-_get_vars_storage(thread_key_t *keyp)
-{
-	vars_storage *vars;
-
-	if (thr_keycreate_once(keyp, free) != 0)
-		return (NULL);
-	vars = pthread_getspecific(*keyp);
-	if (vars == NULL) {
-		vars = calloc(1, sizeof (vars_storage));
-		if (thr_setspecific(*keyp, vars) != 0) {
-			if (vars)
-				(void) free(vars);
-			vars = NULL;
-		}
-	}
-	return (vars);
-}
-
-int *
-___nbra(void)
-{
-	if (thr_main())
-		return (&nbra);
-	else {
-		vars_storage *vars = _get_vars_storage(&key);
-		return (&vars->nbra);
-	}
-}
-
-int *
-___regerrno(void)
-{
-	if (thr_main())
-		return (&regerrno);
-	else {
-		vars_storage *vars = _get_vars_storage(&key);
-		return (&vars->regerrno);
-	}
-}
-
-int *
-___reglength(void)
-{
-	if (thr_main())
-		return (&reglength);
-	else {
-		vars_storage *vars = _get_vars_storage(&key);
-		return (&vars->reglength);
-	}
-}
-
-#undef nbra
-#define	nbra (*(___nbra()))
-#undef regerrno
-#define	regerrno (*(___regerrno()))
-#undef reglength
-#define	reglength (*(___reglength()))
-
-#endif	/* _REENTRANT */
-
-char *_compile(const char *, char *, char *, int);
+char *compile_(const char *, char *, char *, int);
 
 char *
 compile(const char *sp, char *ep, char *endbuf)
 {
-	return (_compile(sp, ep, endbuf, 0));
+	return (compile_(sp, ep, endbuf, 0));
 }
 
 char *
-_compile(const char *sp, char *ep, char *endbuf, int viflag)
+compile_(const char *sp, char *ep, char *endbuf, int viflag)
 {
 	wchar_t		c;
 	int		n;

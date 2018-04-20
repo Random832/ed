@@ -44,5 +44,5 @@
 
 #define	NBRA	9
 
-#define	PLACE(c)	ep[c >> 3] |= _bittab[c & 07]
-#define	ISTHERE(c) (ep[c >> 3] & _bittab[c & 07])
+#define	PLACE(c)	ep[c >> 3] |= bittab[c & 07]
+#define	ISTHERE(c) (ep[c >> 3] & bittab[c & 07])

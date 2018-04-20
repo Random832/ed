@@ -171,7 +171,9 @@ static const 	char	*msgtab[] =
 
 extern  char	*optarg;	/* Value of argument */
 extern  int	optind;		/* Indicator of argument */
+#if SOLARIS
 extern	int __xpg4;	/* defined in xpg4.c; 0 if not xpg4-compiled program */
+#endif
 
 struct  Fspec   {
 	char    Ftabs[22];
@@ -283,7 +285,7 @@ static char	*home;
 static int	nodelim;
 
 int	makekey(int *);
-int	_mbftowc(char *, wchar_t *, int (*)(), int *);
+int	mbftowc(char *, wchar_t *, int (*)(), int *);
 static int	error(int code);
 static void	tlist(struct Fspec *);
 static void	tstd(struct Fspec *);
@@ -1894,7 +1896,7 @@ global(int k)
 		(void) error(33);
 	setall();
 	nonzero();
-	if ((n = _mbftowc(multic, &l, getchr, &peekc)) <= 0)
+	if ((n = mbftowc(multic, &l, getchr, &peekc)) <= 0)
 		(void) error(67);
 	if (l == '\n')
 		(void) error(19);
@@ -2031,7 +2033,7 @@ compsub(void)
 	static int remflg = -1;
 	int i;
 
-	if ((n = _mbftowc(multic, &seof, getchr, &peekc)) <= 0)
+	if ((n = mbftowc(multic, &seof, getchr, &peekc)) <= 0)
 		(void) error(67);
 	if (seof == '\n' || seof == ' ')
 		(void) error(36);
@@ -2039,13 +2041,13 @@ compsub(void)
 	p = rhsbuf;
 	for (;;) {
 		wchar_t cl;
-		if ((n = _mbftowc(multic, &cl, getchr, &peekc)) <= 0)
+		if ((n = mbftowc(multic, &cl, getchr, &peekc)) <= 0)
 			(void) error(67);
 		if (cl == '\\') {
 			*p++ = '\\';
 			if (p >= &rhsbuf[RHSIZE])
 				(void) error(38);
-			if ((n = _mbftowc(multic, &cl, getchr, &peekc)) <= 0)
+			if ((n = mbftowc(multic, &cl, getchr, &peekc)) <= 0)
 				(void) error(67);
 		} else if (cl == '\n') {
 			if (nodelim == 1) {
@@ -2186,7 +2188,7 @@ comple(wchar_t seof)
 	char multic[MB_LEN_MAX];
 
 	while (1) {
-		if ((n = _mbftowc(multic, &c, getchr, &peekc)) < 0)
+		if ((n = mbftowc(multic, &c, getchr, &peekc)) < 0)
 			error1(67);
 		if (n == 0 || c == '\n') {
 			if (cclass)
@@ -2208,7 +2210,7 @@ comple(wchar_t seof)
 			if (cp > &genbuf[LBSIZE-1])
 				error1(50);
 			*cp++ = '[';
-			if ((n = _mbftowc(multic, &c, getchr, &peekc)) < 0)
+			if ((n = mbftowc(multic, &c, getchr, &peekc)) < 0)
 				error1(67);
 			if (n == 0 || c == '\n')
 				error1(49);
@@ -2217,7 +2219,7 @@ comple(wchar_t seof)
 			if (cp > &genbuf[LBSIZE-1])
 				error1(50);
 			*cp++ = '\\';
-			if ((n = _mbftowc(multic, &c, getchr, &peekc)) < 0)
+			if ((n = mbftowc(multic, &c, getchr, &peekc)) < 0)
 				error1(67);
 			if (n == 0 || c == '\n')
 				error1(36);
@@ -2614,7 +2616,7 @@ globaln(int k)
 		(void) error(33);
 	setall();
 	nonzero();
-	if ((n = _mbftowc(multic, &cl, getchr, &peekc)) <= 0)
+	if ((n = mbftowc(multic, &cl, getchr, &peekc)) <= 0)
 		(void) error(67);
 	if (cl == '\n')
 		(void) error(19);
@@ -3217,7 +3219,7 @@ get_wchr()
 	wchar_t	wc;
 	char	multi[MB_LEN_MAX];
 
-	if (_mbftowc(multi, &wc, getchr, &peekc) <= 0)
+	if (mbftowc(multi, &wc, getchr, &peekc) <= 0)
 		wc = getchr();
 	return (wc);
 }

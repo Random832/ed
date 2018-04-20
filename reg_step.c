@@ -34,132 +34,25 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
-//#include <synch.h>
-//#include <thread.h>
-#include <pthread.h>
 #include "widec.h"
 #include "_regexp.h"
 
 #define	ecmp(s1, s2, n)	(strncmp(s1, s2, n) == 0)
 #define	Popwchar(p, l) mbtowc(&l, p, MB_LEN_MAX)
 #define	uletter(c) (isalpha(c) || c == '_')
-#define	_NBRA	128
+#define	NBRA_	128
 
 char	*loc1 = (char *)0, *loc2 = (char *)0, *locs = (char *)0;
-char	*braslist[_NBRA] = { (char *)0};
-char	*braelist[_NBRA] = { (char *)0};
+char	*braslist[NBRA_] = { (char *)0};
+char	*braelist[NBRA_] = { (char *)0};
 
-#ifdef  _REENTRANT
-static thread_key_t key = THR_ONCE_KEY;
-typedef struct _vars_storage {
-	char	*loc1, *loc2, *locs;
-	char    *braslist[_NBRA];
-	char    *braelist[_NBRA];
-} vars_storage;
-#endif
-
-static unsigned char _bittab[] = { 1, 2, 4, 8, 16, 32, 64, 128 };
+static unsigned char bittab[] = { 1, 2, 4, 8, 16, 32, 64, 128 };
 static void getrnge(char *);
 static int cclass(char *, char **, int);
 static int	low;
 static int	size;
-static int _advance(char *, char *);
+static int advance_(char *, char *);
 static char *start;
-
-#ifndef _REENTRANT
-#define pthread_mutex_lock(l) ((void)0)
-#define pthread_mutex_unlock(l) ((void)0)
-#endif
-
-#ifdef _REENTRANT
-static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-
-static vars_storage *
-_get_vars_storage(thread_key_t *keyp)
-{
-	vars_storage *vars;
-
-	if (thr_keycreate_once(keyp, free) != 0)
-		return (NULL);
-	vars = pthread_getspecific(*keyp);
-	if (vars == NULL) {
-		vars = calloc(1, sizeof (vars_storage));
-		if (thr_setspecific(*keyp, vars) != 0) {
-			if (vars)
-				(void) free(vars);
-			vars = NULL;
-		}
-	}
-	return (vars);
-}
-
-char **
-___braslist(void)
-{
-	if (thr_main())
-		return ((char **)&braslist);
-	else {
-		vars_storage *vars = _get_vars_storage(&key);
-		return ((char **)&vars->braslist);
-	}
-}
-
-char **
-___braelist(void)
-{
-	if (thr_main())
-		return ((char **)&braelist);
-	else {
-		vars_storage *vars = _get_vars_storage(&key);
-		return ((char **)&vars->braelist);
-	}
-}
-
-char **
-___loc1(void)
-{
-	if (thr_main())
-		return (&loc1);
-	else {
-		vars_storage *vars = _get_vars_storage(&key);
-		return (&vars->loc1);
-	}
-}
-
-char **
-___loc2(void)
-{
-	if (thr_main())
-		return (&loc2);
-	else {
-		vars_storage *vars = _get_vars_storage(&key);
-		return (&vars->loc2);
-	}
-}
-
-char **
-___locs(void)
-{
-	if (thr_main())
-		return (&locs);
-	else {
-		vars_storage *vars = _get_vars_storage(&key);
-		return (&vars->locs);
-	}
-}
-
-#undef braslist
-#define	braslist (___braslist())
-#undef braelist
-#define	braelist (___braelist())
-#undef loc1
-#define	loc1 (*(___loc1()))
-#undef loc2
-#define	loc2 (*(___loc2()))
-#undef locs
-#define	locs (*(___locs()))
-
-#endif	/* _REENTRANT */
 
 int
 step(char *p1, char *p2)
@@ -170,12 +63,10 @@ step(char *p1, char *p2)
 	int	ret;
 
 	/* check if match is restricted to beginning of string */
-	(void) pthread_mutex_lock(&lock);
 	start = p1;
 	if (*p2++) {
 		loc1 = p1;
-		ret = _advance(p1, p2);
-		(void) pthread_mutex_unlock(&lock);
+		ret = advance_(p1, p2);
 		return (ret);
 	}
 	if (*p2 == CCHR) {
@@ -184,17 +75,15 @@ step(char *p1, char *p2)
 		do {
 			if (*p1 != c)
 				continue;
-			if (_advance(p1, p2)) {
+			if (advance_(p1, p2)) {
 				loc1 = p1;
-				(void) pthread_mutex_unlock(&lock);
 				return (1);
 			}
 		} while (*p1++);
 	} else if (multibyte)
 		do {
-			if (_advance(p1, p2)) {
+			if (advance_(p1, p2)) {
 				loc1 = p1;
-				(void) pthread_mutex_unlock(&lock);
 				return (1);
 			}
 			n = Popwchar(p1, cl);
@@ -207,13 +96,11 @@ step(char *p1, char *p2)
 	else
 		/* regular algorithm */
 		do {
-			if (_advance(p1, p2)) {
+			if (advance_(p1, p2)) {
 				loc1 = p1;
-				(void) pthread_mutex_unlock(&lock);
 				return (1);
 			}
 		} while (*p1++);
-	(void) pthread_mutex_unlock(&lock);
 	return (0);
 }
 
@@ -222,16 +109,14 @@ advance(char *lp, char *ep)
 {
 	int ret;
 
-	(void) pthread_mutex_lock(&lock);
 	/* ignore flag to see if expression is anchored */
 	start = lp;
-	ret = _advance(lp, ++ep);
-	(void) pthread_mutex_unlock(&lock);
+	ret = advance_(lp, ++ep);
 	return (ret);
 }
 
 static int
-_advance(char *lp, char *ep)
+advance_(char *lp, char *ep)
 {
 	char 	*rp;
 	char 	*curlp;
@@ -439,7 +324,7 @@ _advance(char *lp, char *ep)
 				lp += ct;
 
 			while (lp >= curlp) {
-				if (_advance(lp, ep))
+				if (advance_(lp, ep))
 					return (1);
 				lp -= ct;
 			}
@@ -554,7 +439,7 @@ mstar:
 				}
 				if (lp == locs)
 					break;
-				if (_advance(lp, ep))
+				if (advance_(lp, ep))
 					return (1);
 			} while (lp > curlp);
 			return (0);
@@ -584,7 +469,7 @@ mstar:
 				lp = p1;
 				if (lp == locs)
 					break;
-				if (_advance(lp, ep))
+				if (advance_(lp, ep))
 					return (1);
 			} while (lp > curlp);
 			return (0);
@@ -594,7 +479,7 @@ star:
 	do {
 		if (--lp == locs)
 			break;
-		if (_advance(lp, ep))
+		if (advance_(lp, ep))
 			return (1);
 	} while (lp > curlp);
 	return (0);

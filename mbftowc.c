@@ -34,7 +34,7 @@
  */
 
 int
-_mbftowc(char *s, wchar_t *wc, int (*peek)(void), int *errorc)
+mbftowc(char *s, wchar_t *wc, int (*peek)(void), int *errorc)
 {
 	int		c;
 	mbstate_t	mbs;
