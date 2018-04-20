@@ -13,7 +13,6 @@
  * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  */
 
-#include "lint.h"
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>

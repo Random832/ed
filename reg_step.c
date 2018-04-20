@@ -34,10 +34,10 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
-#include <synch.h>
-#include <thread.h>
+//#include <synch.h>
+//#include <thread.h>
 #include <pthread.h>
-#include <widec.h>
+#include "widec.h"
 #include "_regexp.h"
 
 #define	ecmp(s1, s2, n)	(strncmp(s1, s2, n) == 0)
@@ -66,8 +66,13 @@ static int	size;
 static int _advance(char *, char *);
 static char *start;
 
+#ifndef _REENTRANT
+#define pthread_mutex_lock(l) ((void)0)
+#define pthread_mutex_unlock(l) ((void)0)
+#endif
+
 #ifdef _REENTRANT
-static mutex_t lock = DEFAULTMUTEX;
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 static vars_storage *
 _get_vars_storage(thread_key_t *keyp)
@@ -165,12 +170,12 @@ step(char *p1, char *p2)
 	int	ret;
 
 	/* check if match is restricted to beginning of string */
-	(void) mutex_lock(&lock);
+	(void) pthread_mutex_lock(&lock);
 	start = p1;
 	if (*p2++) {
 		loc1 = p1;
 		ret = _advance(p1, p2);
-		(void) mutex_unlock(&lock);
+		(void) pthread_mutex_unlock(&lock);
 		return (ret);
 	}
 	if (*p2 == CCHR) {
@@ -181,7 +186,7 @@ step(char *p1, char *p2)
 				continue;
 			if (_advance(p1, p2)) {
 				loc1 = p1;
-				(void) mutex_unlock(&lock);
+				(void) pthread_mutex_unlock(&lock);
 				return (1);
 			}
 		} while (*p1++);
@@ -189,7 +194,7 @@ step(char *p1, char *p2)
 		do {
 			if (_advance(p1, p2)) {
 				loc1 = p1;
-				(void) mutex_unlock(&lock);
+				(void) pthread_mutex_unlock(&lock);
 				return (1);
 			}
 			n = Popwchar(p1, cl);
@@ -204,11 +209,11 @@ step(char *p1, char *p2)
 		do {
 			if (_advance(p1, p2)) {
 				loc1 = p1;
-				(void) mutex_unlock(&lock);
+				(void) pthread_mutex_unlock(&lock);
 				return (1);
 			}
 		} while (*p1++);
-	(void) mutex_unlock(&lock);
+	(void) pthread_mutex_unlock(&lock);
 	return (0);
 }
 
@@ -217,11 +222,11 @@ advance(char *lp, char *ep)
 {
 	int ret;
 
-	(void) mutex_lock(&lock);
+	(void) pthread_mutex_lock(&lock);
 	/* ignore flag to see if expression is anchored */
 	start = lp;
 	ret = _advance(lp, ++ep);
-	(void) mutex_unlock(&lock);
+	(void) pthread_mutex_unlock(&lock);
 	return (ret);
 }
 

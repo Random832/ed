@@ -1521,7 +1521,7 @@ append(int (*f)(void), LINE a)
 	dot = a;
 	while ((*f)() == 0) {
 		if (dol >= endcore) {
-			if ((int)sbrk(512 * sizeof (struct lin)) == -1) {
+			if (sbrk(512 * sizeof (struct lin)) == (void *)-1) {
 				lastc = '\n';
 				(void) error(30);
 			}
@@ -1618,12 +1618,16 @@ unixcom(void)
 		signal(SIGHUP, oldhup);
 		signal(SIGQUIT, oldquit);
 		close(tfile);
+#if SOLARIS
 		if (__xpg4 == 0) {	/* not XPG4 */
 			shpath = "/usr/bin/sh";
 		} else {
 			/* XPG4 */
 			shpath = "/usr/xpg4/bin/sh";
 		}
+#else
+                shpath = "/bin/sh";
+#endif
 		execlp((const char *)shpath, "sh", "-c", curcmd, (char *)0);
 		exit(0100);
 	}
@@ -2746,12 +2750,16 @@ xerr:		(void) error(0);
 		close(w_or_r(0, 1));
 		dup(w_or_r(pf[0], pf[1]));
 		close(w_or_r(pf[0], pf[1]));
+#if SOLARIS
 		if (__xpg4 == 0) {	/* not XPG4 */
 			shpath = "/usr/bin/sh";
 		} else {
 			/* XPG4 */
 			shpath = "/usr/xpg4/bin/sh";
 		}
+#else
+                shpath = "/bin/sh";
+#endif
 		execlp((const char *)shpath, "sh", "-c", string, (char *)0);
 		exit(1);
 	}

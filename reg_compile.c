@@ -34,9 +34,9 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
-#include <thread.h>
+//#include <thread.h>
 #include <pthread.h>
-#include <widec.h> /* Defines multibyte and WCHAR_CSMASK for valid_range(). */
+#include "widec.h" /* Defines multibyte and WCHAR_CSMASK for valid_range(). */
 #include "_range.h"
 #include "_regexp.h"
 
@@ -176,7 +176,7 @@ _compile(const char *sp, char *ep, char *endbuf, int viflag)
 		/* malloc space */
 		const char *startsp = oldsp;
 		n = 0;
-		while ((d = *startsp++) != NULL) {
+		while ((d = *startsp++) != 0) {
 			if (d == '[')
 				n += 33; /* add room for bitmaps */
 		}
