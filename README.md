@@ -7,3 +7,5 @@ BUGS
 - It has not been tested for POSIX conformance.
 - The encryption support doesn't work, it requires Solaris' libcrypt.
 - Localization support uses gettext, which is not present on macOS.
+- Unicode almost certainly doesn't work; the current multibyte support
+  compiles but depends on what looks like Solaris libc internals.
