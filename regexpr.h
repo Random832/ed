@@ -1,4 +1,3 @@
-// lol where am i gonna find an implementation?
 /*
  * CDDL HEADER START
  *
